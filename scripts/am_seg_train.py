@@ -211,7 +211,7 @@ for d in imageset:
                    instance_mode=ColorMode.IMAGE_BW   # remove the colors of unsegmented pixels. This option is only available for segmentation models
     )
     out=v.draw_instance_predictions(outputs["instances"].to("cpu"))
-    cv2.imwrite('showimage.exp.pred'+str(d['image_id'])+'.jpg',out.get_image()[:, :, ::-1])
+    cv2.imwrite('showimage.exp.pred'+str(d['image_id'])+'_validate.jpg',out.get_image()[:, :, ::-1])
     # ground truth
     v=Visualizer(im[:,:,::-1],
                    metadata=am_metadata_val,
@@ -219,10 +219,39 @@ for d in imageset:
                    instance_mode=ColorMode.IMAGE_BW
     )
     out=v.draw_dataset_dict(d)
-    cv2.imwrite('showimage.exp.groundtruth'+str(d['image_id'])+'.jpg',out.get_image()[:, :, ::-1])
+    cv2.imwrite('showimage.exp.groundtruth'+str(d['image_id'])+'_validate.jpg',out.get_image()[:, :, ::-1])
 #
 evaluator_val=COCOEvaluator("am_validate",("bbox","segm"),False,output_dir="./output/")
 val_loader=build_detection_test_loader(cfg,"am_validate")
 print(inference_on_dataset(trainer_val.model,val_loader,evaluator_val))
+
+# test data set
+am_metadata_test=MetadataCatalog.get("am_test")
+dataset_dicts=get_amseg_dicts("../data/AM_classify/test")
+# random viszualize of 10 images
+imageset=random.sample(dataset_dicts,10)
+for d in imageset:
+    im=cv2.imread(d["file_name"])
+    outputs=predictor(im)  # format is documented at https://detectron2.readthedocs.io/tutorials/models.html#model-output-format
+    # prediction
+    v=Visualizer(im[:,:,::-1],
+                   metadata=am_metadata_test,
+                   scale=0.5,
+                   instance_mode=ColorMode.IMAGE_BW   # remove the colors of unsegmented pixels. This option is only available for segmentation models
+    )
+    out=v.draw_instance_predictions(outputs["instances"].to("cpu"))
+    cv2.imwrite('showimage.exp.pred'+str(d['image_id'])+'_test.jpg',out.get_image()[:, :, ::-1])
+    # ground truth
+    v=Visualizer(im[:,:,::-1],
+                   metadata=am_metadata_test,
+                   scale=0.5,
+                   instance_mode=ColorMode.IMAGE_BW
+    )
+    out=v.draw_dataset_dict(d)
+    cv2.imwrite('showimage.exp.groundtruth'+str(d['image_id'])+'_test.jpg',out.get_image()[:, :, ::-1])
+#
+evaluator_test=COCOEvaluator("am_test",("bbox","segm"),False,output_dir="./output/")
+test_loader=build_detection_test_loader(cfg,"am_test")
+print(inference_on_dataset(trainer_val.model,test_loader,evaluator_test))
 
 # vis: tensorboard --logdir ./dir
