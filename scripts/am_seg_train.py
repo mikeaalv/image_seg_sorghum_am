@@ -88,7 +88,7 @@ def parse_func_wrap(parser,termname,args_internal_dict):
     
     return(parser)
 
-def get_amseg_dicts(img_dir):
+def get_amseg_dicts(img_dir,classes):
     anno_file=os.path.join(img_dir,"regiondata.csv")
     annotab=pd.read_csv(anno_file,delimiter="\t")
     files=annotab['filename'].unique()
@@ -114,11 +114,12 @@ def get_amseg_dicts(img_dir):
             py=anno["all_points_y"]
             poly=[(x+0.5,y+0.5) for x,y in zip(px,py)]
             poly=[p for x in poly for p in x]
+            category_id=np.where([ele==tab_rec['region_attributes'] for ele in classes])[0][0]
             obj={
                 "bbox":[np.min(px),np.min(py),np.max(px),np.max(py)],
                 "bbox_mode":BoxMode.XYXY_ABS,
                 "segmentation":[poly],
-                "category_id":0,
+                "category_id":category_id,
             }
             objs.append(obj)
         
@@ -147,18 +148,18 @@ for key in args_internal_dict.keys():
     parser=parse_func_wrap(parser,key,args_internal_dict)
 
 args=parser.parse_args()
-
+classes=['root','AMF internal hypha','AMF external hypha','AMF arbuscule','AMF vesicle','AMF spore','others']
 for direc in ["train","validate",'test']:
-    DatasetCatalog.register("am_"+direc,lambda direc=direc: get_amseg_dicts("../data/AM_classify/"+direc))
-    MetadataCatalog.get("am_"+direc).set(thing_classes=["fungi"])#classes name list
+    DatasetCatalog.register("am_"+direc,lambda direc=direc: get_amseg_dicts("../data/AM_classify2/"+direc,classes))
+    MetadataCatalog.get("am_"+direc).set(thing_classes=classes)#classes name list
 
 # configuration parameters
 cfg=get_cfg()
 cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/"+args.net_struct+".yaml"))
 cfg.DATASETS.TRAIN=("am_train",)
 cfg.DATASETS.VAL=("am_validate",)#("",)
-# cfg.VALSIZE=len(get_amseg_dicts("../data/AM_classify/validate"))
-trainsize=len(get_amseg_dicts("../data/AM_classify/train"))
+# cfg.VALSIZE=len(get_amseg_dicts("../data/AM_classify2/validate"))
+trainsize=len(get_amseg_dicts("../data/AM_classify2/train",classes))
 cfg.DATASETS.TEST=()
 # cfg.TEST.EVAL_PERIOD=20
 cfg.DATALOADER.NUM_WORKERS=2
@@ -170,7 +171,7 @@ if args.gpu_use!=1:
     cfg.MODEL.DEVICE='cpu'
 
 cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE=128#Number of regions per image used to train RPN. faster, and good enough for this toy dataset (default: 512)
-cfg.MODEL.ROI_HEADS.NUM_CLASSES=1# only has one class (fungi). (see https://detectron2.readthedocs.io/tutorials/datasets.html#update-the-config-for-new-datasets)
+cfg.MODEL.ROI_HEADS.NUM_CLASSES=len(classes)# (see https://detectron2.readthedocs.io/tutorials/datasets.html#update-the-config-for-new-datasets)
 cfg.MODEL.BACKBONE.FREEZE_AT=args.freeze_at
 # cfg.DATALOADER.FILTER_EMPTY_ANNOTATIONS=True
 cfg.SEED=args.seed
@@ -198,7 +199,7 @@ predictor=DefaultPredictor(cfg)
 
 # validation data set
 am_metadata_val=MetadataCatalog.get("am_validate")
-dataset_dicts=get_amseg_dicts("../data/AM_classify/validate")
+dataset_dicts=get_amseg_dicts("../data/AM_classify2/validate")
 # random viszualize of 10 images
 imageset=random.sample(dataset_dicts,10)
 for d in imageset:
@@ -227,7 +228,7 @@ print(inference_on_dataset(trainer_val.model,val_loader,evaluator_val))
 
 # test data set
 am_metadata_test=MetadataCatalog.get("am_test")
-dataset_dicts=get_amseg_dicts("../data/AM_classify/test")
+dataset_dicts=get_amseg_dicts("../data/AM_classify2/test")
 # random viszualize of 10 images
 imageset=random.sample(dataset_dicts,10)
 for d in imageset:
