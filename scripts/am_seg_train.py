@@ -199,7 +199,7 @@ predictor=DefaultPredictor(cfg)
 
 # validation data set
 am_metadata_val=MetadataCatalog.get("am_validate")
-dataset_dicts=get_amseg_dicts("../data/AM_classify2/validate")
+dataset_dicts=get_amseg_dicts("../data/AM_classify2/validate",classes)
 # random viszualize of 10 images
 imageset=random.sample(dataset_dicts,10)
 for d in imageset:
@@ -228,7 +228,7 @@ print(inference_on_dataset(trainer_val.model,val_loader,evaluator_val))
 
 # test data set
 am_metadata_test=MetadataCatalog.get("am_test")
-dataset_dicts=get_amseg_dicts("../data/AM_classify2/test")
+dataset_dicts=get_amseg_dicts("../data/AM_classify2/test",classes)
 # random viszualize of 10 images
 imageset=random.sample(dataset_dicts,10)
 for d in imageset:
