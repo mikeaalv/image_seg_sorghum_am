@@ -45,8 +45,17 @@ args_internal_dict={
     "aug_flag": (1,int)#whether do the more comprehensive augmentation (1) or not (0)
 }
 def build_aug(cfg):
-    augs=[T.ResizeShortestEdge(short_edge_length=(640,672,704,736,768,800),max_size=1333,sample_style='choice'),T.RandomBrightness(0.5,2.0),T.RandomCrop("relative_range",[0.5,0.5]),T.RandomFlip(),T.RandomRotation([0,360])]
-    return augs
+    return [
+        T.ResizeShortestEdge(
+            short_edge_length=(640, 672, 704, 736, 768, 800),
+            max_size=1333,
+            sample_style='choice',
+        ),
+        T.RandomBrightness(0.5, 2.0),
+        T.RandomCrop("relative_range", [0.5, 0.5]),
+        T.RandomFlip(),
+        T.RandomRotation([0, 360]),
+    ]
 
 class ValidationLoss_checkpoint(HookBase):
     # adapted from https://github.com/facebookresearch/detectron2/issues/810
@@ -67,7 +76,7 @@ class ValidationLoss_checkpoint(HookBase):
             losses=sum(loss_dict.values())
             assert torch.isfinite(losses).all(),loss_dict
             loss_dict_reduced={"val_" + k: v.item() for k, v in comm.reduce_dict(loss_dict).items()}
-            losses_reduced=sum(loss for loss in loss_dict_reduced.values())
+            losses_reduced = sum(loss_dict_reduced.values())
             if comm.is_main_process():
                 self.trainer.storage.put_scalars(total_val_loss=losses_reduced,**loss_dict_reduced)
             # the best loss by validation set
