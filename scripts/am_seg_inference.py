@@ -54,8 +54,17 @@ args_internal_dict={
     "aug_flag": (1,int)#whether do the more comprehensive augmentation (1) or not (0)
 }
 def build_aug(cfg):
-    augs=[T.ResizeShortestEdge(short_edge_length=(640,672,704,736,768,800),max_size=1333,sample_style='choice'),T.RandomBrightness(0.5,2.0),T.RandomCrop("relative_range",[0.5,0.5]),T.RandomFlip(),T.RandomRotation([0,360])]
-    return augs
+    return [
+        T.ResizeShortestEdge(
+            short_edge_length=(640, 672, 704, 736, 768, 800),
+            max_size=1333,
+            sample_style='choice',
+        ),
+        T.RandomBrightness(0.5, 2.0),
+        T.RandomCrop("relative_range", [0.5, 0.5]),
+        T.RandomFlip(),
+        T.RandomRotation([0, 360]),
+    ]
 
 def parse_func_wrap(parser,termname,args_internal_dict):
     commandstring='--'+termname.replace("_","-")
