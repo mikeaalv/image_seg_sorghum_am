@@ -1,13 +1,12 @@
 #! /bin/bash
 #SBATCH --job-name=img_seg_am        # Job name
-#SBATCH --partition=gpu_p             # Partition (queue) name
-#SBATCH --gres=gpu:P100:1                 # Requests one GPU device
+#SBATCH --partition=batch             # Partition (queue) name
 #SBATCH --ntasks=1                    # Run on a single CPU
-#SBATCH --cpus-per-task=4             # Number of CPU cores per task
-#SBATCH --mem=20gb                     # Job memory request
-#SBATCH --time=48:00:00               # Time limit hrs:min:sec
-#SBATCH --output=img_seg_amf.%j.out     # Standard output log
-#SBATCH --error=img_seg_amf.%j.err      # Standard error log
+#SBATCH --mem=120gb                     # Job memory request
+#SBATCH --time=150:00:00               # Time limit hrs:min:sec
+#SBATCH --output=img_seg_am.%j.out     # Standard output log
+#SBATCH --error=img_seg_am.%j.err      # Standard error log
+#SBATCH --cpus-per-task=45             # Number of CPU cores per task
 #SBATCH --mail-type=END,FAIL          # Mail events (NONE, BEGIN, END, FAIL, ALL)
 #SBATCH --mail-user=yuewu_mike@163.com  # Where to send mail
 
