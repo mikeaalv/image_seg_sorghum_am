@@ -161,7 +161,7 @@ for fileind,d in enumerate(dataset_dicts):
     clasind=outputs['instances'].get('pred_classes')
     allmasks=outputs['instances'].get('pred_masks')
     for segi in range(clasind.size()[0]):
-        if !allmasks[segi,:,:].any():
+        if not allmasks[segi,:,:].any():
             continue
         
         namelist.append(oriname)
