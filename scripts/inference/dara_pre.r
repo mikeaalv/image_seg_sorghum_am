@@ -7,7 +7,7 @@ require(stringr)
 require(magrittr)
 require(fs)
 paredir="/work/aelab/AMF/AMF Imaging/0_Image_Collection/ZEISS Primo Star/Georgia"
-tardir="/scratch/yw44924/amf_inference/data"
+tardir="/scratch/yw44924/amf_inference/data/test"
 setwd(tardir)
 matchpat="*.jpg"
 listfiles=list.files(path=paredir,pattern=matchpat,full.names=TRUE,recursive=TRUE)
