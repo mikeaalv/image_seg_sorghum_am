@@ -1,14 +1,11 @@
 # this script inference based on trained models
 # Mask-RCNN on detectron2:
 # the folder structure should be:
-#   data/AM_classify2/test (images)
-#   run: the running folder contains scripts am_seg_inference.py
+#   data/test (images)
 #   pretrained: the pretrained model model_best.pth
 # Running:
 #   module load Detectron2/0.3-fosscuda-2019b-Python-3.7.4-PyTorch-1.6.0
 #
-#   time python am_seg_inference.py --seed 1 --net-struct mask_rcnn_R_50_FPN_3x --gpu-use=0 
-
 import argparse
 import os
 import random
@@ -25,6 +22,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import json
 import cv2
+from itertools import compress
+from shapely.geometry import Polygon
 
 import torch
 import torch.nn as nn
@@ -34,7 +33,7 @@ setup_logger()
 from detectron2 import model_zoo
 from detectron2.engine import DefaultPredictor,DefaultTrainer,HookBase
 from detectron2.config import get_cfg
-from detectron2.utils.visualizer import Visualizer,ColorMode
+from detectron2.utils.visualizer import Visualizer,ColorMode,GenericMask
 from detectron2.structures import BoxMode
 from detectron2.evaluation import COCOEvaluator,inference_on_dataset
 from detectron2.data import build_detection_test_loader,DatasetMapper,build_detection_train_loader,MetadataCatalog,DatasetCatalog
@@ -68,6 +67,9 @@ def parse_func_wrap(parser,termname,args_internal_dict):
 
 def get_amseg_dicts_inference(img_dir):
     files=os.listdir(img_dir)
+    # only load the images
+    seleind=[re.search(r"\.jpg",x) is not None for x in files]
+    files=list(compress(files,seleind))
     dataset_dicts=[]
     for idx,file in enumerate(files):
         record={}
@@ -103,7 +105,7 @@ for key in args_internal_dict.keys():
 args=parser.parse_args()
 classes=['root','AMF internal hypha','AMF external hypha','AMF arbuscule','AMF vesicle','AMF spore','others']
 for direc in ['test']:
-    DatasetCatalog.register("am_"+direc,lambda direc=direc: get_amseg_dicts_inference("../data/AM_classify2/"+direc))
+    DatasetCatalog.register("am_"+direc,lambda direc=direc: get_amseg_dicts_inference("./data/"+direc))
     MetadataCatalog.get("am_"+direc).set(thing_classes=classes)#classes name list
 
 # configuration parameters
@@ -122,29 +124,101 @@ cfg.SEED=args.seed
 cfg.AUG_FLAG=args.aug_flag
 #
 # inference
-cfg.MODEL.WEIGHTS=os.path.join("../pretrained/model_best.pth")# path to the model we just trained
+cfg.MODEL.WEIGHTS=os.path.join("./pretrained/model_best.pth")# path to the model we just trained
 #
 cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST=0.7# set a custom testing threshold
 predictor=DefaultPredictor(cfg)
 
 # test data set
 am_metadata_test=MetadataCatalog.get("am_test")
-dataset_dicts=get_amseg_dicts_inference("../data/AM_classify2/test")
-
+dataset_dicts=get_amseg_dicts_inference("./data/test")#
+#
+nametab=pd.read_csv("./data/test/locatab.txt",delimiter=",")
+#
 classlist=[]
-# Edit this loop to record different information
-for d in dataset_dicts:
+polygonlist=[]
+hlist=[]
+wlist=[]
+namelist=[]
+arealist=[]
+idlist=[]
+masklist=[]
+for fileind,d in enumerate(dataset_dicts):
     im=cv2.imread(d["file_name"])
-    outputs=predictor(im)  # format is documented at https://detectron2.readthedocs.io/tutorials/models.html#model-output-format
-    clasind=outputs['instances'].get('pred_classes')
-    classlist.extend([classes[ele] for ele in clasind])
     # prediction
+    outputs=predictor(im)  # format is documented at https://detectron2.readthedocs.io/tutorials/models.html#model-output-format
     v=Visualizer(im[:,:,::-1],
                    metadata=am_metadata_test,
                    scale=0.5,
                    instance_mode=ColorMode.IMAGE_BW   # remove the colors of unsegmented pixels. This option is only available for segmentation models
     )
-    out=v.draw_instance_predictions(outputs["instances"].to("cpu"))
-    cv2.imwrite('showimage.exp.pred'+str(d['image_id'])+'_test.jpg',out.get_image()[:, :, ::-1])
+    # matched names
+    filenameloc=re.findall(r"\d+\.jpg",d["file_name"])
+    rowind=np.where(nametab[['filenames']]==filenameloc)[0][0]
+    oriname=nametab.iloc[rowind,0]
+    #
+    clasind=outputs['instances'].get('pred_classes')
+    allmasks=outputs['instances'].get('pred_masks')
+    for segi in range(clasind.size()[0]):
+        namelist.append(oriname)
+        idlist.append(fileind)
+        hlist.append(v.output.height)
+        wlist.append(v.output.width)
+        classlist.append(classes[clasind[segi]])
+        #
+        locmask=np.asarray(allmasks[segi,:,:])
+        gmask=GenericMask(locmask,v.output.height,v.output.width)
+        mergpolygon=gmask.polygons[0]
+        all_points_x=mergpolygon[::2]
+        all_points_y=mergpolygon[1::2]
+        polygonlist.append(json.dumps({"all_points_x": (all_points_x.tolist()),"all_points_y": (all_points_y.tolist())}))
+        #
+        pgon=Polygon(zip(all_points_x,all_points_y))
+        arealist.append(pgon.area)
+        #
+        locmasknp=np.array(locmask)
+        packmask=np.packbits(locmasknp.view(np.uint8))
+        masklist.append(packmask)
+    
+    if fileind % 100==0:
+        out=v.draw_instance_predictions(outputs["instances"].to("cpu"))
+        cv2.imwrite('showimage.exp.pred'+str(d['image_id'])+'_test.jpg',out.get_image()[:, :, ::-1])
+
 
 # vis: tensorboard --logdir ./dir
+rectab=pd.DataFrame({
+    'filename': namelist,
+    'id':idlist,
+    'height': hlist,
+    'weight': wlist,
+    'annotations': classlist,
+    'segmentation': polygonlist,
+    'area': arealist})
+rectab.to_csv("segmentation.txt",index=False)
+
+# save the result table in ech folder
+# dirlist=[re.sub(r"[^\/]+\.jpg","",x[0]) for x in rectab[['filename']].values.tolist() ]
+# orifolds=np.unique(np.array(dirlist))
+# for orifold in orifolds:
+#     foldind=rectab['filename'].str.contains('('+re.escape(orifold)+')')
+#     rectab_loc=rectab[foldind]
+#     rectab_loc.to_csv(orifold+"segmentation.txt",index=False)
+
+with open('masks.pickle','wb') as handle:
+    pickle.dump(masklist,handle,protocol=pickle.HIGHEST_PROTOCOL)
+
+# example all root area for one image
+# with open('masks.pickle','rb') as handle:
+#     masklist=pickle.load(handle)
+# oriname='/work/aelab/AMF/AMF Imaging/0_Image_Collection/ZEISS Primo Star/Georgia/2021/Experiment001_Greenhouse_Colby/1_JPEG/Roots/Snap-1433.jpg'
+# rowind=np.where((rectab[['filename']]==oriname).values & (rectab[['annotations']]=='root').values)[0]
+# fullmask=np.full((rectab['height'][rowind[0]],rectab['weight'][rowind[0]]),False)
+# for indhere in rowind:
+#     locmasknpup=np.unpackbits(masklist[indhere]).reshape(fullmask.shape).view(np.bool)
+#     # np.array_equal(locmasknpup,locmasknp)
+#     fullmask=fullmask | locmasknpup
+#
+# fig=plt.figure()
+# ax=fig.add_subplot(111)
+# ax.imshow(fullmask,aspect='auto',cmap=plt.cm.gray,interpolation='nearest')
+# plt.savefig('foo.pdf')
