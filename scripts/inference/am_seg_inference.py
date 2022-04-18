@@ -144,6 +144,7 @@ arealist=[]
 idlist=[]
 masklist=[]
 for fileind,d in enumerate(dataset_dicts):
+    d["file_name"]
     im=cv2.imread(d["file_name"])
     # prediction
     outputs=predictor(im)  # format is documented at https://detectron2.readthedocs.io/tutorials/models.html#model-output-format
@@ -160,6 +161,9 @@ for fileind,d in enumerate(dataset_dicts):
     clasind=outputs['instances'].get('pred_classes')
     allmasks=outputs['instances'].get('pred_masks')
     for segi in range(clasind.size()[0]):
+        if !allmasks[segi,:,:].any():
+            continue
+        
         namelist.append(oriname)
         idlist.append(fileind)
         hlist.append(v.output.height)
