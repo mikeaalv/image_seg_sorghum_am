@@ -143,6 +143,7 @@ namelist=[]
 arealist=[]
 idlist=[]
 masklist=[]
+confscorelist=[]
 for fileind,d in enumerate(dataset_dicts):
     d["file_name"]
     im=cv2.imread(d["file_name"])
@@ -160,6 +161,7 @@ for fileind,d in enumerate(dataset_dicts):
     #
     clasind=outputs['instances'].get('pred_classes')
     allmasks=outputs['instances'].get('pred_masks')
+    allscores=outputs['instances'].get('scores')
     for segi in range(clasind.size()[0]):
         if not allmasks[segi,:,:].any():
             continue
@@ -183,6 +185,7 @@ for fileind,d in enumerate(dataset_dicts):
         locmasknp=np.array(locmask)
         packmask=np.packbits(locmasknp.view(np.uint8))
         masklist.append(packmask)
+        confscorelist.append(allscores[segi].item())
     
     if fileind % 100==0:
         out=v.draw_instance_predictions(outputs["instances"].to("cpu"))
@@ -197,7 +200,8 @@ rectab=pd.DataFrame({
     'weight': wlist,
     'annotations': classlist,
     'segmentation': polygonlist,
-    'area': arealist})
+    'area': arealist,
+    'confidenceScore': confscorelist})
 rectab.to_csv("segmentation.txt",index=False)
 
 # save the result table in ech folder
