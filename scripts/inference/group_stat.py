@@ -18,6 +18,7 @@ datapath='./'#./
 restab=pd.read_csv(datapath+"segmentation.txt",delimiter=",")
 with open(datapath+'masks.pickle','rb') as handle:
     masklist=pickle.load(handle)
+
 classlist=restab['annotations'].unique()
 strainlist=['Colby','Richardson','Grain','L8','N116','N6F3','E37','EZY','N88','E46','EZY_E46']
 foldlist=['Experiment001_Greenhouse_Colby','Experiment002_Iron_Horse_Richardson_from_Texus','Experiment001_Iron_Horse_Grain_Sorghum','L8-JPEG','N116-JPEG','N6F3-JPEG','E37-JPEG','EZY-JPEG','N88-JPEG','E46-JPEG','Additional_images_from_EZY_E46-JPEG']
