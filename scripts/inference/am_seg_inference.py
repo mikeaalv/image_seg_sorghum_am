@@ -174,7 +174,7 @@ idlist=[]
 masklist=[]
 confscorelist=[]
 for fileind,d in enumerate(dataset_dicts):
-    d["file_name"]
+    print(d["file_name"])
     im=cv2.imread(d["file_name"])
     # prediction
     outputs=predictor(im)  # format is documented at https://detectron2.readthedocs.io/tutorials/models.html#model-output-format
