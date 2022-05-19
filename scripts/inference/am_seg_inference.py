@@ -81,7 +81,7 @@ def get_amseg_dicts_inference(img_dir):
         record["width"]=width
         dataset_dicts.append(record)
     
-    return dataset_dicts
+    return dataset_dicts, files
 
 class newtrainer(DefaultTrainer):
     @classmethod
@@ -131,9 +131,38 @@ predictor=DefaultPredictor(cfg)
 
 # test data set
 am_metadata_test=MetadataCatalog.get("am_test")
-dataset_dicts=get_amseg_dicts_inference("./data/test")#
+dataset_dicts, imagfiles=get_amseg_dicts_inference("./data/test")#
 #
 nametab=pd.read_csv("./data/test/locatab.txt",delimiter=",")
+# table of strain, locaiton, replicate
+locstr=nametab['location'].str.extract(r'1\_JPEG\/+(.+)')
+nametab_exp=locstr[0].str.split(r'\/',expand=True).iloc[:,0:3]
+nametab_exp.columns=['strain','location','replicate']
+nametab_exp['strain']=nametab_exp['strain'].str.replace(r'\-JPEG','')
+# randome samples for each
+sampset=['L8','N116','N6F3','E37','EZY','E46']
+locations=nametab_exp['location'].unique().tolist()
+nvis=10
+for strainid,strain in enumerate(sampset):
+    for locationid,location in enumerate(locations):
+        groupind=(nametab_exp['strain']==strain) & (nametab_exp['location']==location)
+        allindexes=set(np.where(np.array(groupind.values))[0])
+        if len(allindexes)==0:
+            continue
+        seleind=np.sort(np.array(random.sample(allindexes,nvis)))
+        # seleind=list(allindexes)[0:3]
+        selefiles=nametab.iloc[seleind,1].values
+        for selefileind,selefile in enumerate(selefiles):
+            dicind=np.where(np.array(imagfiles)==selefile)[0]
+            if len(dicind)==0:
+                continue
+            dicind=dicind[0]
+            tempdic=dataset_dicts[dicind]
+            tempdic['strain']=strain
+            tempdic['location']=location
+            tempdic['ind']=seleind[selefileind]
+            dataset_dicts[dicind]=tempdic
+
 #
 classlist=[]
 polygonlist=[]
@@ -187,9 +216,9 @@ for fileind,d in enumerate(dataset_dicts):
         masklist.append(packmask)
         confscorelist.append(allscores[segi].item())
     
-    if fileind % 100==0:
+    if 'strain' in d :#fileind % 100==0:
         out=v.draw_instance_predictions(outputs["instances"].to("cpu"))
-        cv2.imwrite('showimage.exp.pred'+str(d['image_id'])+'_test.jpg',out.get_image()[:, :, ::-1])
+        cv2.imwrite('showimage.exp.pred'+str(d['image_id'])+'_'+d['strain']+'_'+d['location']+'_test.jpg',out.get_image()[:, :, ::-1])
 
 
 # vis: tensorboard --logdir ./dir
