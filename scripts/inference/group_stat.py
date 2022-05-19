@@ -20,13 +20,15 @@ with open(datapath+'masks.pickle','rb') as handle:
     masklist=pickle.load(handle)
 
 classlist=restab['annotations'].unique()
-strainlist=['Colby','Richardson','Grain','L8','N116','N6F3','E37','EZY','N88','E46','EZY_E46']
-foldlist=['Experiment001_Greenhouse_Colby','Experiment002_Iron_Horse_Richardson_from_Texus','Experiment001_Iron_Horse_Grain_Sorghum','L8-JPEG','N116-JPEG','N6F3-JPEG','E37-JPEG','EZY-JPEG','N88-JPEG','E46-JPEG','Additional_images_from_EZY_E46-JPEG']
-regionlist=['BOT','MID','TOP',None]
+strainlist=['N102','N108','N110','N162','N43','N66','N68','N6F3','E46','EZY','N10','E37','L8','N116']
+foldlist=['N102-JPEG','N108-JPEG','N110-JPEG','N162-JPEG','N43-no match-JPEG','N66-no match-JPEG','N68-JPEG','N6F3-JPEG','E46-JPEG','EZY-JPEG','N10-JPEG','E37-JPEG','L8-JPEG','N116-JPEG']
+regionlist=['BOT','MID','TOP']
+slidlist=['1','2','3']
 #
 classlist_col=[]
 strainlist_col=[]
 regionlist_col=[]
+slidelist_col=[]
 #
 areasum_list_col=[]
 numseg_list_col=[]
@@ -37,42 +39,39 @@ for classele in classlist:
     for gind,genotype in enumerate(strainlist):
         genind=restab['filename'].str.contains('/'+foldlist[gind]+'/',regex=False)
         for reg in regionlist:
-            if reg is not None:
-                classele+' '+genotype+' '+reg
-                regind=restab['filename'].str.contains('/'+reg+'/',regex=False)
-            else:
-                classele+' '+genotype+' '+'None'
-                regind=restab['filename'].str.contains('',regex=False)
-                for regcheck in regionlist[:3]:
-                    regindsub=restab['filename'].str.contains('/'+regcheck+'/',regex=False)
-                    regind=regind & (~regindsub)
-            sumind=clasind & genind & regind
-            subtab=restab[sumind]
-            # areas sum
-            rowind=np.where(sumind.values)[0]
-            sumarea=0
-            for fileele in subtab['filename'].unique():
-                fileind=np.where((subtab['filename']==fileele).values)[0]
-                ind_1file=fileind[0]
-                fullmask=np.full((subtab['height'].iloc[ind_1file],subtab['weight'].iloc[ind_1file]),False)
-                for indhere in fileind:
-                    locmasknpup=np.unpackbits(masklist[rowind[indhere]]).reshape(fullmask.shape).view(np.bool)
-                    fullmask=fullmask | locmasknpup
-                sumarea=sumarea+fullmask.sum()
-            areasum_list_col.append(sumarea)
-            # number of segmentation
-            numseg_list_col.append(subtab.shape[0])
-            # number of images
-            numimgexi_list_col.append(len(subtab['filename'].unique()))
-            #
-            classlist_col.append(classele)
-            strainlist_col.append(genotype)
-            regionlist_col.append(reg)
+            regind=restab['filename'].str.contains('/'+reg+'/',regex=False)
+            for slide in slidlist:
+                classele+' '+genotype+' '+reg+' '+slide
+                slideind=restab['filename'].str.contains('/'+slide+'/',regex=False)
+                sumind=clasind & genind & regind & slideind
+                subtab=restab[sumind]
+                # areas sum
+                rowind=np.where(sumind.values)[0]
+                sumarea=0
+                for fileele in subtab['filename'].unique():
+                    fileind=np.where((subtab['filename']==fileele).values)[0]
+                    ind_1file=fileind[0]
+                    fullmask=np.full((subtab['height'].iloc[ind_1file],subtab['weight'].iloc[ind_1file]),False)
+                    for indhere in fileind:
+                        locmasknpup=np.unpackbits(masklist[rowind[indhere]]).reshape(fullmask.shape).view(np.bool)
+                        fullmask=fullmask | locmasknpup
+                    sumarea=sumarea+fullmask.sum()
+                areasum_list_col.append(sumarea)
+                # number of segmentation
+                numseg_list_col.append(subtab.shape[0])
+                # number of images
+                numimgexi_list_col.append(len(subtab['filename'].unique()))
+                #
+                classlist_col.append(classele)
+                strainlist_col.append(genotype)
+                regionlist_col.append(reg)
+                slidelist_col.append(slide)
     
 stat_count_tab=pd.DataFrame({
     'class': classlist_col,
     'strain':strainlist_col,
     'region': regionlist_col,
+    'slide': slidelist_col,
     'sum_area': areasum_list_col,
     'number_segments': numseg_list_col,
     'number_images': numimgexi_list_col})
