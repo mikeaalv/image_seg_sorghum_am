@@ -1,4 +1,4 @@
-# tile images into majority 1024*1024
+# tile images into majority 512*512
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -9,10 +9,14 @@ import uuid as uuid
 import cv2
 import re
 import shutil
+from operator import itemgetter
+import math
+import random
 
 import shapely
 import shapely.geometry
 from shapely.geometry import Polygon,MultiPolygon
+from shapely.validation import make_valid
 
 def readImage(img_dir,filename):
     '''
@@ -54,7 +58,7 @@ def tileImage(img):
 def convertPoints(anno):
     points = [[]]
                     
-    for x_coordinate in range(0,len(anno["all_points_x"]),2):
+    for x_coordinate in range(0,len(anno["all_points_x"]),1):
         points.append([anno["all_points_x"][x_coordinate],anno["all_points_y"][x_coordinate]])
     
     # remove empyt lists from the list of points
@@ -74,19 +78,21 @@ def intersectBoundingBox(points,xmin,ymin,xmax,ymax):
 
 def intersectmask(points,xmin,ymin,xmax,ymax):
     converted_points_list=[]
-    if len(points)<=3:
+    if len(points)<3:
         converted_points_list.append([])
         return converted_points_list
     tilebox=Polygon([(xmin,ymin),(xmax,ymin),(xmax,ymax),(xmin,ymax)])
     polygonp=Polygon(points)
+    polygonp=make_valid(polygonp)
     if polygonp.is_valid:
         polygon_inters=polygonp.intersection(tilebox)
         is_polygon=polygon_inters.geom_type=='Polygon'
         is_polygon_multi=polygon_inters.geom_type=='MultiPolygon'
-        if (not is_polygon) and (not is_polygon_multi):
+        is_mutliothers=polygon_inters.geom_type=='GeometryCollection'
+        if (not is_polygon) and (not is_polygon_multi) and (not is_mutliothers):
             converted_points_list.append([])
         else:
-            if is_polygon_multi:
+            if is_polygon_multi or is_mutliothers:
                 polygon_inters_list=polygon_inters
             else: # elif is_polygon:
                 polygon_inters_list=MultiPolygon([polygon_inters])
@@ -169,10 +175,12 @@ def IntersectSegmentations(img_dir,output_dir,tiles, img, annotab, file,classes)
                 continue
             #print(anno)
             points=convertPoints(anno)
-            # this is the problem line
-            converted_points_in=intersectBoundingBox(points,xmin,ymin,xmax,ymax)
-            if len(converted_points_in) > 1:
+            # quick check 1 (this was for speed purpose but the crossing patterns are more complex and might have no point within)
+            # converted_points_in=intersectBoundingBox(points,xmin,ymin,xmax,ymax)
+            converted_points_in=[1]
+            if len(converted_points_in) >= 1:
                 converted_points_list=intersectmask(points,xmin,ymin,xmax,ymax)
+                
                 for indp,converted_points in enumerate(converted_points_list):
                     if len(converted_points)>0:
                         Sxmin=min(converted_points,key=lambda x:x[0])[0]
@@ -196,6 +204,7 @@ def IntersectSegmentations(img_dir,output_dir,tiles, img, annotab, file,classes)
                         #objs.append(obj)
                         record["annotations"].append(obj)
                     else:
+                        print('2:'+str(ind)+'_'+str(anno_i)+'_'+className)
                         nonvalid_seg_counter=nonvalid_seg_counter+1
         if len(record['annotations']) > 0:
             #subset the image to the tile coordinates
@@ -212,7 +221,7 @@ def writeRegionDataSet(dataset_dicts):
     :return:
     
     # Objective: Iterate over the dataset_dicts, each record will consist of filename, image_id, height, width, and annotations.
-    We want to iterate over the annotations and write each annotation to a line in the csv file where the header line of the file
+    We want to iterate over the annotations and write each annotation to a line in the tsv file where the header line of the file
     will be the keys of the annotations dict.
     '''
     import csv
@@ -220,146 +229,23 @@ def writeRegionDataSet(dataset_dicts):
         
         fieldnames = ['filename', 'image_id','structure_id','height', 'width', 'category_id' ,
         'bbox', 'segmentation', 'bbox_mode', 'iscrowd']
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer = csv.DictWriter(csvfile,fieldnames=fieldnames,delimiter='\t')
         writer.writeheader()
         for indr,record in enumerate(dataset_dicts):
             for indo,obj in enumerate(record["annotations"]):
                 writer.writerow(obj)
     pass
 
-def processDataSetDicts(dataset_dicts):
-    '''
-    :param img_dir:
-    :return formated COCO dataset:
-    :rtype: pandas df
-    Objective: Read in the dataset object from the regionsdata.csv. Process the csv into the format required by COCO.
-    Each of the vlaue in the coc dataset correspond to the following keys:
-    filename: the name of the image
-    image_id: the id of the image
-    height: the height of the image
-    width: the width of the image
-    annotations: the annotations of the image
-    The keys in the dataset_dict for the tile are:
-    filename: tile_id + _ + x_coord + _ + y_coord + .jpg
-    name: the class of the tile, convert the class to the corresponding class id from the classes list
-    bbox: the bounding box of the tile
-    segmentation: the segmentation of the tile
-    bbox_mode: the bounding box mode of the tile
-    iscrowd: the iscrowd of the tile
-    Iterate through the dataset dict and extract the values from the keyys to make a new dataset_dicts for the tiles.
-    '''
-    # iterate through the dataset_dict and extract the values that the COCO dataset needs
-    COCO_dataset = []
-    for indr,record in enumerate(dataset_dicts):
-        #print(record)
-        # if the record has an annotations column and it is not empty
-        if 'annotations' in record and len(record['annotations']) > 0:
-            # iterate through the annotations
-            for inda,annotation in enumerate(record['annotations']):
-                # append the keys to the COCO_dataset
-                COCO_dataset.append({
-                    'UID': annotation['id'],
-                    'filename': annotation['filename'],
-                    # output dir and image ID is the tild ID and the jpg extension
-                    'image_id': annotation['tile_id']+'.jpg',
-                    'height': 512,
-                    'width': 512,
-                    'segmentation': annotation['segmentation'],
-                    'bbox': annotation['bbox'],
-                    'category_id': annotation['category_id'],
-                    'bbox_mode': annotation['bbox_mode'],
-                    'iscrowd': annotation['iscrowd']
-                })
-    # convert the COCO_dataset to a pandas df
-    #COCO_dataset = pd.DataFrame(COCO_dataset)
-    return COCO_dataset
-
-def addColumn(img_dir):
-    '''
-    :param img_dir
-    :return: regiondata
-    :rtype: pandas
-    Objective: Read in the regiondata.csv from the img_dir. Add the vlaue val to the data_dir column if the filenamer contians the string "CNN2_Keyence_Nbenth_myc_8" or "CNN2_Keyence_Nbenth_myc_9", else add the value train to the column
-    '''
-    df = pd.read_csv(img_dir+'regiondata.csv')
-    df['data_dir'] = df['filename'].apply(lambda x: 'val' if 'CNN2_Keyence_Nbenth_myc_8' in x or 'CNN2_Keyence_Nbenth_myc_9' in x else 'train')
-    df.to_csv(img_dir+'regiondata.csv', index=False)
-    return df
-
-def readCOCO(img_dir):
-    '''
-    :param img_dir:
-    :return: COCO_dataset
-    :rtype: pandas
-    Objective: Read in the regiondata.csv. Split the data from the filenames column into train and val according to the data_dir column in the csv.
-    '''
-    # list the unique .jpg file names with .jpg extension in the img_dir
-    img_list = [f for f in os.listdir(img_dir) if f.endswith('.jpg')]
-    # read the regiondata.csv as a pandas df
-    df = pd.read_csv(img_dir+'regiondata.csv')
-    # a train and val directory in the img_dir
-    train_dir = img_dir+'train/'
-    val_dir = img_dir+'val/'
-    # iterate over the lines in df, move the images to the train or val directory, if the image has been moved, continue, else move the image
-    # iterate over the image list and the rows of the dataframe. if the image in the image list matches the filename in the filename column in the dataframe
-    # and the data_dir column is train, move the image to the train directory. if the data_dir column is val, move the image to the val directory. if the image
-    # exists in the train or val directory already, continue.
-    for index, row in df.iterrows():
-        for indi,img in enumerate(img_list):
-            if img == row['filename']:
-                if row['data_dir'] == 'train':
-                    if os.path.exists(train_dir+img):
-                        continue
-                    else:
-                        shutil.move(img_dir+img, train_dir+img)
-                elif row['data_dir'] == 'val':
-                    if os.path.exists(val_dir+img):
-                        continue
-                    else:
-                        shutil.move(img_dir+img, val_dir+img)
-                else:
-                    continue
-            else:
-                continue
-    # subset the df to the train and the val according to the data_dir column
-    train_df = df[df['data_dir'] == 'train']
-    val_df = df[df['data_dir'] == 'val']
-    # write a regiondata.csv for the train and val directories
-    train_df.to_csv(train_dir+'regiondata.csv', index=False)
-    val_df.to_csv(val_dir+'regiondata.csv', index=False)
-    return df
-
-# make coco form my csv file
-def makeCOCOdataset(img_dir):
-    '''
-    : param img_dir:
-    : return: COCO_dataset
-
-    Objective: For the train and the val directories, we will read in the region.csv file. We will format a list of dictionaries in COCO dataset format. Where each dictionary has the following keys:
-    filename, image_id, height, width, segmentation, bbox, category_id, bbox_mode, iscrowd.
-
-    '''
-    # read regiondata.csv as a pandas df
-    df = pd.read_csv(img_dir+'regiondata.csv')
-    # iterate over the lines of the df and create a list of dictionaries with keys of: filename, image_id, height, width, segmentation, bbox, category_id, bbox_mode, iscrowd
-    COCO_dataset = []
-    for index, row in df.iterrows():
-        record = {}
-        record['filename'] = str(row['filename'])
-        record['image_id'] = row['image_id']
-        record['height'] = row['height']
-        record['width'] = row['width']
-        record['segmentation'] = row['segmentation']
-        record['bbox'] = row['bbox']
-        record['category_id'] = row['category_id']
-        record['bbox_mode'] = row['bbox_mode']
-        record['iscrowd'] = row['iscrowd']
-        COCO_dataset.append(record)
-    return COCO_dataset
-
 projdir='/scratch/yw44924/amf_tile/'
 img_dir=projdir+'data/raw/'
 output_dir=projdir+'tiling/'
+preproc_dir=projdir+'preprocess/'
+data_sep_dir=projdir+'datasep/'
+qc_dir=projdir+'qc/'
+os.makedirs(output_dir,exist_ok=True)
+os.makedirs(preproc_dir,exist_ok=True)
+os.makedirs(data_sep_dir,exist_ok=True)
+os.makedirs(qc_dir,exist_ok=True)
 os.chdir(output_dir)
 annotab,files=readAnnotation(img_dir)
 dataset_dicts=[]
@@ -370,6 +256,12 @@ annotab=annotab.dropna(subset=['region_attributes'])
 annotab['region_attributes']=annotab['region_attributes'].apply(lambda y: '{"object":"root"}' if y=='{"object":"Root"}' else y)
 rem=annotab['region_attributes']
 files=annotab['filename'].unique()
+# preprocess the raw data
+for file_name in files:
+    shutil.copy(img_dir+file_name,preproc_dir+file_name)
+
+annotab.to_csv(preproc_dir+'regiondata.csv',index=False)
+#
 for indi,stained_image in enumerate(files):
     print(stained_image)
     img=readImage(img_dir,stained_image)
@@ -377,9 +269,72 @@ for indi,stained_image in enumerate(files):
     records=IntersectSegmentations(img_dir,output_dir,tiles,img,annotab,stained_image,classes)
     dataset_dicts.extend(records)
 
+
 writeRegionDataSet(dataset_dicts)
-dat=pd.read_csv(img_dir+'regiondata.csv')
-COCO_dataset=processDataSetDicts(dataset_dicts)
-df=addColumn(output_dir)
-df=readCOCO(output_dir)
-COCO_dataset=makeCOCOdataset(output_dir+'train/')
+dat=pd.read_csv('regiondata.csv',delimiter="\t")
+dat_sub=dat[['filename','segmentation','category_id']]
+filename=[]
+file_size=[]
+file_attributes=[]
+region_count=[]
+region_id=[]
+region_shape_attributes=[]
+region_attributes=[]
+counttab=dat_sub['filename'].value_counts()
+for index, row in dat_sub.iterrows():
+    filename.append(row['filename'])
+    file_size.append(os.stat(row['filename']).st_size)
+    file_attributes.append({})
+    region_count.append(counttab[row['filename']])
+    region_id.append(index)
+    points=json.loads(row['segmentation'])
+    shapedic={'name':'polygon','all_points_x': points[0::2],'all_points_y': points[1::2]}
+    region_shape_attributes.append(json.dumps(shapedic))
+    region_attributes.append(row['category_id'])
+    
+dat_new=pd.DataFrame({
+    'filename': filename,
+    'file_size':file_size,
+    'file_attributes': file_attributes,
+    'region_count': region_count,
+    'region_id': region_id,
+    'region_shape_attributes': region_shape_attributes,
+    'region_attributes': region_attributes})
+
+dat_new.to_csv(output_dir+'regiondata_new.csv',index=False,sep='\t')
+
+# separation into different groups
+testperc=[0.1,0.1]#validation and test
+#no repeats (there will be multiple annotations for the same image)
+nonduplicated_ind=[not ele for ele in dat_new['filename'].duplicated(keep='first').tolist()]
+datatab2=dat_new.loc[nonduplicated_ind]
+totsampsize=datatab2.shape[0]
+files=np.array(datatab2['filename'].tolist())
+numsampvalid=math.floor(totsampsize*testperc[0])
+numsamptest=math.floor(totsampsize*testperc[1])
+sampleind=set(range(0,totsampsize))
+testind=np.sort(np.array(random.sample(sampleind,numsamptest)))
+testindset=set(testind)
+validind=np.sort(np.array(random.sample(sampleind.difference(testindset),numsampvalid)))
+validindset=set(validind)
+trainind=np.sort(np.array(list(sampleind.difference(testindset.union(validindset)))))
+indlist=[trainind,validind,testind]
+setnames=['train','validate','test']
+os.makedirs(data_sep_dir+'train',exist_ok=True)
+os.makedirs(data_sep_dir+'test',exist_ok=True)
+os.makedirs(data_sep_dir+'validate',exist_ok=True)
+
+for i in range(len(indlist)):
+    ind=indlist[i]
+    setname=setnames[i]
+    list_res=[]
+    for file in files[ind]:
+        sourcfile=output_dir+file
+        if os.path.isfile(sourcfile):
+            shutil.copy(sourcfile,data_sep_dir+setname+'/'+file)
+            list_res.append(dat_new[dat_new['filename']==file])
+        else:
+            print('non existence file:'+file+'\n')
+    
+    resdf=pd.concat(list_res)
+    resdf.to_csv(data_sep_dir+setname+'/'+'regiondata.csv',sep='\t',index=False)
