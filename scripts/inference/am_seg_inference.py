@@ -175,6 +175,8 @@ masklist=[]
 confscorelist=[]
 for fileind,d in enumerate(dataset_dicts):
     print(d["file_name"])
+    if d['height']<100 or d['width']<100:
+        continue
     im=cv2.imread(d["file_name"])
     # prediction
     outputs=predictor(im)  # format is documented at https://detectron2.readthedocs.io/tutorials/models.html#model-output-format
