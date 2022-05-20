@@ -27,6 +27,7 @@ import json
 import cv2
 from itertools import compress
 from shapely.geometry import Polygon
+import matplotlib.colors as mplc
 
 import torch
 import torch.nn as nn
@@ -45,7 +46,7 @@ import detectron2.utils.comm as comm
 
 def get_amseg_dicts(img_dir,classes):
     anno_file=os.path.join(img_dir,"regiondata.csv")
-    annotab=pd.read_csv(anno_file,delimiter=",")
+    annotab=pd.read_csv(anno_file,delimiter="\t")
     files=annotab['filename'].unique()
     dataset_dicts=[]
     for idx,file in enumerate(files):
@@ -134,32 +135,21 @@ def get_amseg_dicts_raw(img_dir,classes):
     
     return dataset_dicts
 
-class newtrainer(DefaultTrainer):
-    
 class Visualizer_font(Visualizer):
-    def draw_text(
-        self,
-        text,
-        position,
-        *,
-        font_size=None,
-        color="g",
-        horizontal_alignment="center",
-        rotation=0,
-    ):
+    def draw_text(self,text,position,*,font_size=None,color="g",horizontal_alignment="center",rotation=0,):
         if not font_size:
-            font_size = self._default_font_size
-        font_size=10
+            font_size=self._default_font_size
+        font_size=10#set the font size
         # since the text background is dark, we don't want the text to be dark
-        color = np.maximum(list(mplc.to_rgb(color)), 0.2)
-        color[np.argmax(color)] = max(0.8, np.max(color))
+        color=np.maximum(list(mplc.to_rgb(color)),0.2)
+        color[np.argmax(color)]=max(0.8,np.max(color))
         
-        x, y = position
+        x,y=position
         self.output.ax.text(
             x,
             y,
             text,
-            size=font_size * self.output.scale,
+            size=font_size*self.output.scale,
             family="sans-serif",
             bbox={"facecolor": "black", "alpha": 0.8, "pad": 0.7, "edgecolor": "none"},
             verticalalignment="top",
@@ -183,7 +173,7 @@ am_metadata_val=MetadataCatalog.get("am_qc")
 dataset_dicts=get_amseg_dicts(tilingdir,classes)#
 #
 # random viszualize of 10 images
-imageset=random.sample(dataset_dicts,10)
+imageset=random.sample(dataset_dicts,20)
 for d in imageset:
     im=cv2.imread(d["file_name"])
     idimagefile=re.search(r"\d+_\d+_\d+_\d+_\d+\.",d["file_name"]).group()
@@ -197,12 +187,12 @@ for d in imageset:
     cv2.imwrite(outputdir+'showimage.exp.groundtruth'+str(d['image_id'])+'_'+idimagefile+'jpg',out.get_image()[:, :, ::-1])
 
 # raw images (large)
-for direc in ['raw']:
-    DatasetCatalog.register("am_"+direc,lambda direc=projdir+"data/"+direc: get_amseg_dicts_raw(tilingdir,classes))
+for direc in ['preprocess']:
+    DatasetCatalog.register("am_"+direc,lambda direc=projdir+direc: get_amseg_dicts_raw(tilingdir,classes))
     MetadataCatalog.get("am_"+direc).set(thing_classes=classes)#classes name list
 
-am_metadata_raw=MetadataCatalog.get("am_raw")
-dataset_dicts=get_amseg_dicts_raw(projdir+"data/raw",classes)#
+am_metadata_raw=MetadataCatalog.get("am_preprocess")
+dataset_dicts=get_amseg_dicts_raw(projdir+"preprocess/",classes)#
 #
 imageset=random.sample(dataset_dicts,15)
 for d in imageset:
@@ -214,5 +204,6 @@ for d in imageset:
                    scale=1,
                    instance_mode=ColorMode.IMAGE_BW
     )
+    v._default_font_size=3
     out=v.draw_dataset_dict(d)
     cv2.imwrite(outputdir+'full'+idimagefile+'_show.jpg',out.get_image()[:, :, ::-1])
