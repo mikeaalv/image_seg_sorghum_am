@@ -19,5 +19,5 @@ for(set_ele in sets){
   tab_exist=read.table(paste0(tardir,set_ele,"/regiondata.csv"),sep="\t",header=TRUE)
   tab_add=read.table(paste0(paredir,set_ele,"/regiondata.csv"),sep="\t",header=TRUE)
   tab_comb=rbind.fill(tab_exist,tab_add)
-  write.table(tab_comb,file=paste0(set_ele,"/regiondata.csv"),sep="\t",row.names=FALSE)
+  write.table(tab_comb,file=paste0(set_ele,"/regiondata.csv"),sep="\t",row.names=FALSE,qmethod="double")
 }
