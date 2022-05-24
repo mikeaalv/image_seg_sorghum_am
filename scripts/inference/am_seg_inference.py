@@ -228,7 +228,7 @@ rectab=pd.DataFrame({
     'filename': namelist,
     'id':idlist,
     'height': hlist,
-    'weight': wlist,
+    'width': wlist,
     'annotations': classlist,
     'segmentation': polygonlist,
     'area': arealist,
@@ -251,7 +251,7 @@ with open('masks.pickle','wb') as handle:
 #     masklist=pickle.load(handle)
 # oriname='/work/aelab/AMF/AMF Imaging/0_Image_Collection/ZEISS Primo Star/Georgia/2021/Experiment001_Greenhouse_Colby/1_JPEG/Roots/Snap-1433.jpg'
 # rowind=np.where((rectab[['filename']]==oriname).values & (rectab[['annotations']]=='root').values)[0]
-# fullmask=np.full((rectab['height'][rowind[0]],rectab['weight'][rowind[0]]),False)
+# fullmask=np.full((rectab['height'][rowind[0]],rectab['width'][rowind[0]]),False)
 # for indhere in rowind:
 #     locmasknpup=np.unpackbits(masklist[indhere]).reshape(fullmask.shape).view(np.bool)
 #     # np.array_equal(locmasknpup,locmasknp)

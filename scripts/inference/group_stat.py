@@ -51,7 +51,7 @@ for classele in classlist:
                 for fileele in subtab['filename'].unique():
                     fileind=np.where((subtab['filename']==fileele).values)[0]
                     ind_1file=fileind[0]
-                    fullmask=np.full((subtab['height'].iloc[ind_1file],subtab['weight'].iloc[ind_1file]),False)
+                    fullmask=np.full((subtab['height'].iloc[ind_1file],subtab['width'].iloc[ind_1file]),False)
                     for indhere in fileind:
                         locmasknpup=np.unpackbits(masklist[rowind[indhere]]).reshape(fullmask.shape).view(np.bool)
                         fullmask=fullmask | locmasknpup
