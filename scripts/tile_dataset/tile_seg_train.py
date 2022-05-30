@@ -186,7 +186,7 @@ trainer._hooks=trainer._hooks[:-2] + trainer._hooks[-2:][::-1]
 trainer.resume_or_load(resume=False)
 trainer.train()#training
 # inference
-cfg.MODEL.WEIGHTS=os.path.join("../pretrained/model_best.pth")# path to the model we just trained
+cfg.MODEL.WEIGHTS=os.path.join("./output/model_best.pth")# path to the model we just trained
 # cfg.MODEL.WEIGHTS=os.path.join(cfg.OUTPUT_DIR,"model_best.pth")# path to the model we just trained
 trainer_val=newtrainer(cfg)
 trainer_val.resume_or_load(resume=False)
