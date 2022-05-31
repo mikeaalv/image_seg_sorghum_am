@@ -7,7 +7,7 @@ require(stringr)
 require(magrittr)
 require(fs)
 paredir="/work/aelab/AMF/AMF Imaging/0_Image_Collection/ZEISS Primo Star/Georgia/2021/Experiment002_Greenhouse_14_Accession/1_JPEG/"
-tardir="/scratch/yw44924/amf_inference2/data/test"
+tardir="/scratch/yw44924/amf_inference3/data/test"
 setwd(tardir)
 matchpat="*.jpg"
 except='Additional images and duplicates'

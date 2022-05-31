@@ -20,8 +20,8 @@ with open(datapath+'masks.pickle','rb') as handle:
     masklist=pickle.load(handle)
 
 classlist=restab['annotations'].unique()
-strainlist=['N102','N108','N110','N162','N43','N66','N68','N6F3','N10','E37','L8','N116']#del 'EZY','E46'
-foldlist=['N102-JPEG','N108-JPEG','N110-JPEG','N162-JPEG','N43-no match-JPEG','N66-no match-JPEG','N68-JPEG','N6F3-JPEG','N10-JPEG','E37-JPEG','L8-JPEG','N116-JPEG']
+strainlist=['N102','N108','N110','N162','N43','N66','N68','N6F3','N10','E37','L8','N116','E46','EZY']#del 'EZY','E46'
+foldlist=['N102-JPEG','N108-JPEG','N110-JPEG','N162-JPEG','N43-no match-JPEG','N66-no match-JPEG','N68-JPEG','N6F3-JPEG','N10-JPEG','E37-JPEG','L8-JPEG','N116-JPEG','E46-JPEG','EZY-JPEG']
 regionlist=['BOT','MID','TOP']
 slidlist=['1','2','3']
 #
