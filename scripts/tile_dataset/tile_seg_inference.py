@@ -126,8 +126,8 @@ for key in args_internal_dict.keys():
 
 args=parser.parse_args()
 classes=['root','AMF internal hypha','AMF external hypha','AMF arbuscule','AMF vesicle','AMF spore','others']
-for direc in ['train','validate','test']:
-    DatasetCatalog.register("am_"+direc,lambda direc=direc: get_amseg_dicts("../data/"+direc,classes))
+for direc in ['alltile']:
+    DatasetCatalog.register("am_"+direc,lambda direc=direc: get_amseg_dicts("./data/"+direc,classes))
     MetadataCatalog.get("am_"+direc).set(thing_classes=classes)#classes name list
 
 # configuration parameters
@@ -146,7 +146,7 @@ cfg.SEED=args.seed
 cfg.AUG_FLAG=args.aug_flag
 #
 # inference
-cfg.MODEL.WEIGHTS=os.path.join("../5/output/model_best.pth")# path to the model we just trained
+cfg.MODEL.WEIGHTS=os.path.join("./pretrained/model_best.pth")# path to the model we just trained
 #
 cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST=0.7# set a custom testing threshold
 #
@@ -161,50 +161,50 @@ arealist=[]
 idlist=[]
 masklist=[]
 confscorelist=[]
-setlist=[]
-for dataset_sele in ['train','validate','test']:
-    am_metadata_set=MetadataCatalog.get("am_test")
-    dataset_dicts, imagfiles=get_amseg_dicts("../data/"+dataset_sele,classes)#
+am_metadata_set=MetadataCatalog.get("am_alltile")
+dataset_dicts, imagfiles=get_amseg_dicts("./data/"+"alltile",classes)#
+#
+for fileind,d in enumerate(dataset_dicts):
+    print(d["file_name"])
+    im=cv2.imread(d["file_name"])
+    # prediction
+    outputs=predictor(im)  # format is documented at https://detectron2.readthedocs.io/tutorials/models.html#model-output-format
+    v=Visualizer(im[:,:,::-1],
+                   metadata=am_metadata_set,
+                   scale=0.5,
+                   instance_mode=ColorMode.IMAGE_BW   # remove the colors of unsegmented pixels. This option is only available for segmentation models
+    )
     #
-    for fileind,d in enumerate(dataset_dicts):
-        print(d["file_name"])
-        im=cv2.imread(d["file_name"])
-        # prediction
-        outputs=predictor(im)  # format is documented at https://detectron2.readthedocs.io/tutorials/models.html#model-output-format
-        v=Visualizer(im[:,:,::-1],
-                       metadata=am_metadata_set,
-                       scale=0.5,
-                       instance_mode=ColorMode.IMAGE_BW   # remove the colors of unsegmented pixels. This option is only available for segmentation models
-        )
+    clasind=outputs['instances'].get('pred_classes')
+    allmasks=outputs['instances'].get('pred_masks')
+    allscores=outputs['instances'].get('scores')
+    for segi in range(clasind.size()[0]):
+        if not allmasks[segi,:,:].any():
+            continue
+        
+        locmask=np.asarray(allmasks[segi,:,:])
+        gmask=GenericMask(locmask,v.output.height,v.output.width)
+        if len(gmask.polygons)==0:
+            continue
+        
+        namelist.append(d["file_name"])
+        idlist.append(fileind)
+        hlist.append(v.output.height)
+        wlist.append(v.output.width)
+        classlist.append(classes[clasind[segi]])
         #
-        clasind=outputs['instances'].get('pred_classes')
-        allmasks=outputs['instances'].get('pred_masks')
-        allscores=outputs['instances'].get('scores')
-        for segi in range(clasind.size()[0]):
-            if not allmasks[segi,:,:].any():
-                continue
-            
-            namelist.append(d["file_name"])
-            idlist.append(fileind)
-            hlist.append(v.output.height)
-            wlist.append(v.output.width)
-            classlist.append(classes[clasind[segi]])
-            #
-            locmask=np.asarray(allmasks[segi,:,:])
-            gmask=GenericMask(locmask,v.output.height,v.output.width)
-            mergpolygon=gmask.polygons[0]
-            all_points_x=mergpolygon[::2]
-            all_points_y=mergpolygon[1::2]
-            polygonlist.append(json.dumps({"all_points_x": (all_points_x.tolist()),"all_points_y": (all_points_y.tolist())}))
-            #
-            pgon=Polygon(zip(all_points_x,all_points_y))
-            arealist.append(pgon.area)
-            #
-            locmasknp=np.array(locmask)
-            packmask=np.packbits(locmasknp.view(np.uint8))
-            masklist.append(packmask)
-            confscorelist.append(allscores[segi].item())
-            setlist.append(dataset_sele)
+        mergpolygon=gmask.polygons[0]
+        all_points_x=mergpolygon[::2]
+        all_points_y=mergpolygon[1::2]
+        polygonlist.append(json.dumps({"all_points_x": (all_points_x.tolist()),"all_points_y": (all_points_y.tolist())}))
+        #
+        pgon=Polygon(zip(all_points_x,all_points_y))
+        arealist.append(pgon.area)
+        #
+        locmasknp=np.array(locmask)
+        packmask=np.packbits(locmasknp.view(np.uint8))
+        masklist.append(packmask)
+        confscorelist.append(allscores[segi].item())
 
 # vis: tensorboard --logdir ./dir
 rectab=pd.DataFrame({
@@ -215,8 +215,7 @@ rectab=pd.DataFrame({
     'annotations': classlist,
     'segmentation': polygonlist,
     'area': arealist,
-    'confidenceScore': confscorelist,
-    'set': setlist})
+    'confidenceScore': confscorelist})
 rectab.to_csv("segmentation.txt",index=False)
 
 with open('masks.pickle','wb') as handle:
