@@ -209,6 +209,7 @@ for fileind,d in enumerate(dataset_dicts):
     # prediction
     out=v.draw_instance_predictions(outputs["instances"].to("cpu"))
     cv2.imwrite('showimage.exp.pred'+str(d['image_id'])+'_test.jpg',out.get_image()[:, :, ::-1])
+    out.fig.savefig('showimage.exp.pred'+str(d['image_id'])+'_test.pdf')
     # ground truth
     v=Visualizer(im[:,:,::-1],
                    metadata=am_metadata_test,
@@ -217,6 +218,7 @@ for fileind,d in enumerate(dataset_dicts):
     )
     out=v.draw_dataset_dict(d)
     cv2.imwrite('showimage.exp.groundtruth'+str(d['image_id'])+'_test.jpg',out.get_image()[:, :, ::-1])
+    out.fig.savefig('showimage.exp.groundtruth'+str(d['image_id'])+'_test.pdf')
 
 # vis: tensorboard --logdir ./dir
 rectab=pd.DataFrame({
