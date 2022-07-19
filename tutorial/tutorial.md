@@ -28,7 +28,7 @@ The data can be found [here](https://www.dropbox.com/sh/6ohczzdtdhqw7dr/AAC0E9w9
 
 `submitlist.tab` is the hyperparameter setting and an example is [here](../scripts/utilis/submitlist.tab). `am_seg_train.sh` is the resource request script where a p100 GPU is requested and the Detectron2 environment (on Sapelo2) is loaded. `am_seg_train.py` is the major running script. `parameter_sampler.R` is the script to submit jobs in batch.
 
-An inferecnce set will need a folder structure like follows (for example on the test set):
+An inferecnce run will need a folder structure like follows (for example on the test set):
 
 ```
     data/
@@ -49,7 +49,7 @@ An inferecnce set will need a folder structure like follows (for example on the 
 5. There should be mutliple job submitted and queued. You can check the result later.
 
 
-For the inference example, submit the shell file should work. 
+For the inference example, submit the shell file should work. Or you can run it interactively. 
 
 ## Debug the training script.
 
