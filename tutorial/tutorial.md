@@ -48,6 +48,9 @@ An inferecnce set will need a folder structure like follows (for example on the 
 4. Start R and run parameter_sampler.R
 5. There should be mutliple job submitted and queued. You can check the result later.
 
+
+For the inference example, submit the shell file should work. 
+
 ## Debug the training script.
 
 1. When you connect to the HPC, remember to have `-Y` after `ssh`
