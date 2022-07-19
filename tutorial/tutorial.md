@@ -28,6 +28,18 @@ The data can be found [here](https://www.dropbox.com/sh/6ohczzdtdhqw7dr/AAC0E9w9
 
 `submitlist.tab` is the hyperparameter setting and an example is [here](../scripts/utilis/submitlist.tab). `am_seg_train.sh` is the resource request script where a p100 GPU is requested and the Detectron2 environment (on Sapelo2) is loaded. `am_seg_train.py` is the major running script. `parameter_sampler.R` is the script to submit jobs in batch.
 
+An inferecnce run will need a folder structure like follows (for example on the test set):
+
+```
+    data/
+      AM_classify2/
+        test/
+    am_seg_test.sh
+    am_seg_test.py
+    pretrained/
+        model_best.pth
+```
+
 ## A first easy run
 
 1. Upload data and script to proper location
@@ -35,6 +47,9 @@ The data can be found [here](https://www.dropbox.com/sh/6ohczzdtdhqw7dr/AAC0E9w9
 3. Load into proper R environment. For example: `ml load R/4.1.0-foss-2019b`
 4. Start R and run parameter_sampler.R
 5. There should be mutliple job submitted and queued. You can check the result later.
+
+
+For the inference example, submit the shell file should work. Or you can run it interactively. 
 
 ## Debug the training script.
 
